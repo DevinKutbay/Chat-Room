@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>DK Chatroom</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.css">
+<script src="http://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js"></script> 
+</head>
+<body style="font-family:monospace; background: black;;">
+
+
+<div data-role="page" id="opacity" style="background: black; overflow: hidden; margin-top: 40px;">
+    <h1 style="color: white;">DK-Chatroom</h1>
+        <div class="main-content" style="text-shadow: 0 1px 0 transparent; color: white;">
+            <p>Current Chat Room : <span id="room">&emsp;&emsp;</span></p>
+            <select id="room-list" class="align-left"></select>
+            <p style="margin-left: 20%; font-weight: bolder;">Your Name: <span id="name"></span></p>
+            <div class="chat" id="chat" style="margin-left: 20%; max-width: 60%; border-style: solid;
+            border-color: black; padding: 2%; background: rgb(53, 52, 52);"></div>
+            <br>
+            <input type="text" data-clear-btn="true" id="msg" >
+        </div>
+    </div>
+</div>
+</body>
+<script>
+
+$(document).ready(function() { 
+    chatname = prompt("Enter your chat name:", "User");
+    if(chatname == null) { chatname = "User"; }
+    $("#name").text(chatname);
+    poll();
+    get_room();
+});
+
+$('#msg').on("keyup", function(e) {           
+    if (e.keyCode == 13) send();
+});
+
+$('#room-list').on("change", function() { 
+    changed = $(this).find(":selected").val();
+    if(changed == "create room") {
+        get_room(true);
+    } else {
+        $("#room").text(changed);
+    }
+});
+
+function send() {
+    msg = $("#msg").val();
+    if(msg.trim() == "") { $("#msg").val(""); return; }
+    
+    post_data = { action: "send", 
+        room : $("#room").text(), 
+        name: $("#name").text(), 
+        msg: msg };
+    console.log(post_data);
+    
+    $.ajax({
+        url: "server.php",
+        type: "POST",
+        data: post_data,
+        success: function(r) {
+            $("#chat").html(r).scrollTop($('#chat')[0].scrollHeight);
+            $("#msg").val("");
+        },
+    });
+}
+
+function poll() {
+    room = $("#room").text();
+    if(room.trim() != "") {
+        $.ajax({
+            url: "server.php",
+            type: "POST",
+            data: { action: "poll", room: room },
+            success: function(r) {
+                $("#chat").html(r);
+            },
+        });
+    }
+    setTimeout(poll, 1000);
+}
+
+function get_room(create = false) {
+    post_data = { action: "room" };
+    if(create) {
+        new_room = $("#name").text();
+        new_room = new_room.replaceAll(' ', '-');
+        new_room += " room-" + Math.floor(Math.random() * Math.floor(10000));
+        post_data["new"] = new_room;
+    }
+    console.log(post_data);
+    
+    $.ajax({
+        url: "server.php",
+        type: "POST",
+        data: post_data,
+        success: function(r) {
+            console.log(r);
+            obj = JSON.parse(r);
+            list_rooms = "";
+            for(id in obj) {
+                list_rooms += "<option value='" + obj[id] + "'>Chat Room : " + obj[id] + "</option>";
+            }
+            list_rooms += "<option value='create room'>======== CREATE A NEW ROOM ========</option>";
+            
+            $("#room-list").html(list_rooms).selectmenu("refresh", true);
+            room = $("#room").text();
+            if(room.trim() == "") {
+                $("#room").text("default-room");
+            }
+            if(create) {
+                alert("A NEW ROOM NAMED : " + new_room+ " HAS BEEN CREATED");
+                $("#room").text($("#room-list").find(":selected").val());
+            }
+        },
+    });
+}
+</script>
+
+
